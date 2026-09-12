@@ -33,7 +33,6 @@
   --safe-b: env(safe-area-inset-bottom, 0px);
   --safe-l: env(safe-area-inset-left, 0px);
   --safe-r: env(safe-area-inset-right, 0px);
-  --bar-h: 0px;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -317,18 +316,6 @@ section + section { border-top: 1px solid var(--line); }
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
-/* ============ 移动端底部快捷条（仅手机显示） ============ */
-.mobile-bar {
-  display: none;
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
-  align-items: center; gap: 10px;
-  padding: 10px 16px calc(10px + var(--safe-b));
-  background: rgba(255,255,255,.97);
-  border-top: 1px solid var(--line);
-}
-.mobile-bar .btn { flex: 1 1 auto; height: 46px; }
-.mobile-bar .btn-copy { flex: 0 0 auto; margin-left: 0; }
-
 /* ============ 鼠标设备：悬停反馈 ============ */
 @media (hover: hover) {
   .nav a:hover { color: var(--blue); background: var(--mist); }
@@ -405,7 +392,6 @@ section + section { border-top: 1px solid var(--line); }
 }
 @media (max-width: 720px) {
   :root { --sec-pad: 60px; --head-h: 64px; --pad-x: 20px; }
-  body { padding-bottom: calc(66px + var(--safe-b)); }
   .brand-text span { display: none; }
   .nav-toggle { display: block; }
   /* 顶栏改实色：毛玻璃在中低端安卓滚动时掉帧 */
@@ -434,8 +420,6 @@ section + section { border-top: 1px solid var(--line); }
   .foot-cols { flex-direction: column; gap: 28px; }
   .hero-card { padding: 26px 22px; }
   .pull { padding: 22px 22px; font-size: 17px; }
-  .toast { bottom: calc(80px + var(--safe-b)); }
-  .mobile-bar { display: flex; }
 }
 @media (max-width: 480px) {
   .hero { padding: 44px 0 40px; }
@@ -484,13 +468,12 @@ section + section { border-top: 1px solid var(--line); }
   .site-foot { background: #090d13; }
   .btn-copy.copied { background: rgba(217,176,106,.14); }
   .toast { background: #e6ebf4; color: #0f1319; }
-  .mobile-bar { background: rgba(15,19,25,.97); }
 }
 
 /* ============ 打印 ============ */
 @media print {
-  .site-head, .nav, .toast, .btn-copy, .head-cta, .mobile-bar { display: none !important; }
-  body { color: #000; background: #fff; padding-bottom: 0; }
+  .site-head, .nav, .toast, .btn-copy, .head-cta { display: none !important; }
+  body { color: #000; background: #fff; }
   .reveal { opacity: 1; transform: none; }
   section { padding: 20px 0; break-inside: avoid; }
   a[href^="http"]::after { content: " (" attr(href) ")"; font-size: 11px; color: #555; }
