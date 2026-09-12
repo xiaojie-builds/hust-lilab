@@ -25,6 +25,9 @@
       nav.classList.toggle('open', open);
       toggle.setAttribute('aria-expanded', String(open));
       toggle.setAttribute('aria-label', open ? '关闭导航菜单' : '打开导航菜单');
+      // 展开时锁住页面滚动（iOS 需要同时设 html 与 body 才生效）
+      document.documentElement.style.overflow = open ? 'hidden' : '';
+      document.body.style.overflow = open ? 'hidden' : '';
     }
 
     toggle.addEventListener('click', function () {
@@ -143,12 +146,46 @@
     onScroll();
   }
 
+  /* ---------- 中屏横滑导航：可滑动时右缘渐隐，提示还有栏目 ---------- */
+  function setupNavScrollHint() {
+    var nav = document.getElementById('nav');
+    if (!nav) return;
+
+    function update() {
+      var max = nav.scrollWidth - nav.clientWidth;
+      var atEnd = nav.scrollLeft >= max - 2;
+      nav.classList.toggle('is-scrollable', max > 2 && !atEnd);
+    }
+
+    var raf;
+    function onScroll() {
+      if (raf) cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(update);
+    }
+
+    update();
+    window.addEventListener('resize', onScroll, { passive: true });
+    window.addEventListener('orientationchange', function () { setTimeout(update, 300); });
+    nav.addEventListener('scroll', onScroll, { passive: true });
+  }
+
+  /* ---------- 注册 Service Worker：支持添加到主屏与离线浏览 ---------- */
+  function registerServiceWorker() {
+    if (!('serviceWorker' in navigator)) return;
+    if (location.protocol !== 'https:' && location.hostname !== 'localhost') return;
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function () {});
+    });
+  }
+
   function init() {
     markCurrentNav();
     setupNavToggle();
+    setupNavScrollHint();
     setupCopy();
     setupReveal();
     setupHeadShadow();
+    registerServiceWorker();
   }
 
   if (document.readyState === 'loading') {
