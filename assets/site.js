@@ -1,112 +1,159 @@
-/* 单页 Tab 切换 + 滚动渐显 */
-document.addEventListener('DOMContentLoaded', function () {
-  var tabs = Array.prototype.slice.call(document.querySelectorAll('.tab'));
-  var pages = Array.prototype.slice.call(document.querySelectorAll('.page'));
+/* 李学飞课题组 Li Lab — 站点脚本（多页面版）
+   功能：当前页导航高亮 / 移动端菜单 / 复制邮箱 / 滚动渐显
+   无第三方依赖，原生 JS。 */
+(function () {
+  'use strict';
 
-  function activate(id, push) {
-    var page = document.getElementById(id);
-    if (!page) { id = 'pg-home'; page = document.getElementById(id); }
-    tabs.forEach(function (t) {
-      var on = t.getAttribute('data-target') === id;
-      t.setAttribute('aria-selected', String(on));
-      t.tabIndex = on ? 0 : -1;        /* roving tabindex */
-      if (on && t.scrollIntoView) {
-        var bar = t.parentNode;
-        var left = t.offsetLeft - (bar.clientWidth - t.clientWidth) / 2;
-        bar.scrollTo ? bar.scrollTo({ left: left, behavior: 'smooth' }) : (bar.scrollLeft = left);
+  /* ---------- 当前页导航高亮 ---------- */
+  function markCurrentNav() {
+    var here = location.pathname.split('/').pop() || 'index.html';
+    var links = document.querySelectorAll('.nav a[href]');
+    Array.prototype.forEach.call(links, function (a) {
+      var target = a.getAttribute('href').split('#')[0].split('/').pop();
+      if (target === here) a.setAttribute('aria-current', 'page');
+      else a.removeAttribute('aria-current');
+    });
+  }
+
+  /* ---------- 移动端菜单 ---------- */
+  function setupNavToggle() {
+    var toggle = document.querySelector('.nav-toggle');
+    var nav = document.getElementById('nav');
+    if (!toggle || !nav) return;
+
+    function setOpen(open) {
+      nav.classList.toggle('open', open);
+      toggle.setAttribute('aria-expanded', String(open));
+      toggle.setAttribute('aria-label', open ? '关闭导航菜单' : '打开导航菜单');
+    }
+
+    toggle.addEventListener('click', function () {
+      setOpen(!nav.classList.contains('open'));
+    });
+
+    // 点击菜单内链接后关闭
+    nav.addEventListener('click', function (e) {
+      if (e.target.closest && e.target.closest('a')) setOpen(false);
+    });
+
+    // 点击外部关闭
+    document.addEventListener('click', function (e) {
+      if (!nav.classList.contains('open')) return;
+      if (!nav.contains(e.target) && !toggle.contains(e.target)) setOpen(false);
+    });
+
+    // Esc 关闭并把焦点还给按钮
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && nav.classList.contains('open')) {
+        setOpen(false);
+        toggle.focus();
       }
     });
-    pages.forEach(function (p) { p.classList.toggle('active', p.id === id); });
-    // 显示后手动触发渐显（隐藏页面内 IntersectionObserver 不会触发）
-    page.querySelectorAll('.reveal').forEach(function (el) { el.classList.add('in'); });
-    if (push && history.replaceState) { history.replaceState(null, '', '#' + id.replace(/^pg-/, '')); }
-    window.scrollTo({ top: 0, behavior: 'auto' });
-  }
 
-  // 方向键 / Home / End 在 tab 之间循环（ARIA tabs pattern）
-  tabs.forEach(function (t, i) {
-    t.tabIndex = t.getAttribute('aria-selected') === 'true' ? 0 : -1;
-    t.addEventListener('click', function () { activate(t.getAttribute('data-target'), true); });
-    t.addEventListener('keydown', function (e) {
-      var k = e.key, next = null;
-      if (k === 'ArrowRight' || k === 'ArrowDown') next = tabs[(i + 1) % tabs.length];
-      else if (k === 'ArrowLeft' || k === 'ArrowUp') next = tabs[(i - 1 + tabs.length) % tabs.length];
-      else if (k === 'Home') next = tabs[0];
-      else if (k === 'End')  next = tabs[tabs.length - 1];
-      if (next) { e.preventDefault(); activate(next.getAttribute('data-target'), true); next.focus(); }
+    // 视口放大时自动收起（避免桌面端残留展开状态）
+    window.addEventListener('resize', function () {
+      if (window.innerWidth > 720 && nav.classList.contains('open')) setOpen(false);
     });
-  });
-
-  document.addEventListener('click', function (e) {
-    var a = e.target.closest && e.target.closest('a[href^="#pg-"]');
-    if (a) {
-      e.preventDefault();
-      activate(a.getAttribute('href').slice(1), true);
-    }
-  });
-
-  function fromHash(push) {
-    var h = (location.hash || '').replace('#', '');
-    activate(h ? 'pg-' + h : 'pg-home', push);
   }
-  fromHash(false);
-  window.addEventListener('hashchange', function () { fromHash(false); });
 
-  // 复制邮箱（mailto 在无邮件客户端或预览环境无效时的兜底）
+  /* ---------- 提示条 ---------- */
   function toast(msg) {
     var el = document.getElementById('toast');
     if (!el) {
       el = document.createElement('div');
-      el.id = 'toast'; el.className = 'toast';
+      el.id = 'toast';
+      el.className = 'toast';
       el.setAttribute('role', 'status');
       el.setAttribute('aria-live', 'polite');
       document.body.appendChild(el);
     }
-    el.textContent = msg; el.classList.add('show');
-    clearTimeout(el._t); el._t = setTimeout(function () { el.classList.remove('show'); }, 1800);
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(el._t);
+    el._t = setTimeout(function () { el.classList.remove('show'); }, 1800);
   }
+
+  /* ---------- 复制文本 ---------- */
   function copyText(text) {
-    if (navigator.clipboard && window.isSecureContext) { return navigator.clipboard.writeText(text); }
-    return new Promise(function (res, rej) {
+    if (navigator.clipboard && window.isSecureContext) {
+      return navigator.clipboard.writeText(text);
+    }
+    return new Promise(function (resolve, reject) {
       var ta = document.createElement('textarea');
-      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
-      document.body.appendChild(ta); ta.select();
-      try { document.execCommand('copy') ? res() : rej(); } catch (e) { rej(); }
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy') ? resolve() : reject(); }
+      catch (err) { reject(); }
       document.body.removeChild(ta);
     });
   }
-  document.addEventListener('click', function (e) {
-    var b = e.target.closest && e.target.closest('[data-mail]');
-    if (!b) return;
-    var mail = b.getAttribute('data-mail');
-    copyText(mail).then(function () {
-      b.classList.add('copied');
-      // 用 dataset 保存首次点击时的原文，避免 1.8s 内连点被 "已复制" 覆盖
-      if (!b.dataset.copyOrig) b.dataset.copyOrig = b.textContent;
-      b.textContent = '已复制';
-      clearTimeout(b._t);
-      b._t = setTimeout(function () {
-        b.textContent = b.dataset.copyOrig || '';
-        b.classList.remove('copied');
-      }, 1800);
-      toast('邮箱已复制：' + mail);
-    }).catch(function () {
-      toast('复制失败，请手动复制：' + mail);
-      // 兜底提示用户手动复制（兜底时尝试 window.prompt）
-      try { window.prompt('请复制以下邮箱：', mail); } catch (_) {}
-    });
-  });
 
-  // 滚动渐显
-  var items = document.querySelectorAll('.reveal');
-  if ('IntersectionObserver' in window) {
-    var io = new IntersectionObserver(function (entries) {
-      entries.forEach(function (en) {
-        if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); }
+  function setupCopy() {
+    document.addEventListener('click', function (e) {
+      var btn = e.target.closest && e.target.closest('[data-mail]');
+      if (!btn) return;
+      var mail = btn.getAttribute('data-mail');
+      copyText(mail).then(function () {
+        if (!btn.dataset.copyOrig) btn.dataset.copyOrig = btn.textContent;
+        btn.textContent = '已复制';
+        btn.classList.add('copied');
+        clearTimeout(btn._t);
+        btn._t = setTimeout(function () {
+          btn.textContent = btn.dataset.copyOrig || '';
+          btn.classList.remove('copied');
+        }, 1800);
+        toast('邮箱已复制：' + mail);
+      }).catch(function () {
+        toast('复制失败，请手动复制：' + mail);
       });
-    }, { threshold: .12, rootMargin: '0px 0px -40px 0px' });
-    items.forEach(function (el) { io.observe(el); });
-  } else {
-    items.forEach(function (el) { el.classList.add('in'); });
+    });
   }
-});
+
+  /* ---------- 滚动渐显 ---------- */
+  function setupReveal() {
+    var items = document.querySelectorAll('.reveal');
+    if (!items.length) return;
+    if (!('IntersectionObserver' in window)) {
+      Array.prototype.forEach.call(items, function (el) { el.classList.add('in'); });
+      return;
+    }
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('in');
+          io.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+    Array.prototype.forEach.call(items, function (el) { io.observe(el); });
+  }
+
+  /* ---------- 页面滚动时给顶栏加投影 ---------- */
+  function setupHeadShadow() {
+    var head = document.querySelector('.site-head');
+    if (!head) return;
+    function onScroll() {
+      head.style.boxShadow = window.scrollY > 8 ? '0 6px 20px rgba(15,36,80,.06)' : '';
+    }
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  }
+
+  function init() {
+    markCurrentNav();
+    setupNavToggle();
+    setupCopy();
+    setupReveal();
+    setupHeadShadow();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
