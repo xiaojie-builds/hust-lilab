@@ -1,7 +1,7 @@
 /* 李学飞课题组 Li Lab — Service Worker
    策略：网络优先，离线时回退到缓存。
    网络优先保证访客永远先看到最新内容；断网或信号差时仍能打开已看过的页面。 */
-var CACHE = 'lilab-v1';
+var CACHE = 'lilab-v2';
 
 var PRECACHE = [
   'index.html', 'about.html', 'research.html', 'people.html',

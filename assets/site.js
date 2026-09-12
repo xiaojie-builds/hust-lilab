@@ -21,13 +21,29 @@
     var nav = document.getElementById('nav');
     if (!toggle || !nav) return;
 
+    var lockY = 0;   // 打开菜单时记录的滚动位置，关闭时还原
+
     function setOpen(open) {
       nav.classList.toggle('open', open);
       toggle.setAttribute('aria-expanded', String(open));
       toggle.setAttribute('aria-label', open ? '关闭导航菜单' : '打开导航菜单');
-      // 展开时锁住页面滚动（iOS 需要同时设 html 与 body 才生效）
-      document.documentElement.style.overflow = open ? 'hidden' : '';
-      document.body.style.overflow = open ? 'hidden' : '';
+
+      // 展开时锁住背景滚动。
+      // 刻意不用 overflow:hidden —— 改根元素 overflow 会把页面弹回顶部，
+      // 并让顶栏及其下方绝对定位的菜单错位（"往下滑后打开菜单异常"的元凶）。
+      // 改为把 body 固定住并保留滚动偏移，关闭时再滚回原位。
+      var canLock = window.matchMedia('(max-width: 720px)').matches;
+      if (open && canLock) {
+        lockY = window.pageYOffset || document.documentElement.scrollTop || 0;
+        document.body.style.top = '-' + lockY + 'px';
+        document.body.classList.add('nav-locked');
+      } else {
+        var wasLocked = document.body.classList.contains('nav-locked');
+        document.body.classList.remove('nav-locked');
+        document.body.style.top = '';
+        // 用 instant 避免被 html 的 scroll-behavior:smooth 变成缓慢回滚
+        if (wasLocked) window.scrollTo({ top: lockY, left: 0, behavior: 'instant' });
+      }
     }
 
     toggle.addEventListener('click', function () {

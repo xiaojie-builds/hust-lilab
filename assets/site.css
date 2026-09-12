@@ -52,7 +52,8 @@ body {
   -webkit-font-smoothing: antialiased;
   -webkit-text-size-adjust: 100%;
   text-wrap: pretty;
-  overflow-x: hidden;
+  overflow-x: hidden;   /* 兜底：老浏览器 */
+  overflow-x: clip;     /* 现代浏览器用 clip：不会把 body 变成滚动容器，不干扰顶栏定位 */
 }
 
 a { color: inherit; text-decoration: none; }
@@ -394,8 +395,20 @@ section + section { border-top: 1px solid var(--line); }
   :root { --sec-pad: 60px; --head-h: 64px; --pad-x: 20px; }
   .brand-text span { display: none; }
   .nav-toggle { display: block; }
-  /* 顶栏改实色：毛玻璃在中低端安卓滚动时掉帧 */
-  .site-head { background: rgba(255,255,255,.97); backdrop-filter: none; }
+  /* 顶栏改为固定定位 + 实色：
+     - 实色是因为毛玻璃在中低端安卓滚动时掉帧；
+     - 固定定位是因为菜单是相对顶栏做绝对定位的，顶栏必须始终贴住视口顶部。
+       用 sticky 时，一旦滚动被锁定（或祖先 overflow 变化）它就会错位，
+       表现为"页面往下滑之后打开菜单异常"。 */
+  .site-head {
+    position: fixed; top: 0; left: 0; right: 0;
+    background: rgba(255,255,255,.97); backdrop-filter: none;
+  }
+  /* 固定定位后顶栏脱离文档流，用等高内边距占位，避免盖住内容 */
+  body { padding-top: calc(var(--safe-t) + var(--head-h)); }
+  /* 菜单展开时锁定背景滚动：用固定定位实现，不用 overflow:hidden ——
+     改根元素 overflow 会把页面弹回顶部，并让顶栏与菜单定位错乱 */
+  body.nav-locked { position: fixed; left: 0; right: 0; width: 100%; }
   .nav {
     position: absolute; top: calc(var(--head-h) + var(--safe-t)); left: 0; right: 0;
     flex-direction: column; align-items: stretch; gap: 0;
